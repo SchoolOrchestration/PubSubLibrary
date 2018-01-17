@@ -1,11 +1,12 @@
-'''
+"""
 Test pubsub abstraction
-'''
-import unittest
-from pubsub import get_backend
+"""
 from backends import PubNubBackend
+from pubsub import get_backend
+import unittest
 
-class TestPubsubAbstractionBackend(unittest.TestCase):
+
+class TestPubSubAbstractionBackend(unittest.TestCase):
 
     def setUp(self):
         self.pubsub = get_backend('backends', 'PubNubBackend', 'test-channel')
@@ -17,6 +18,7 @@ class TestPubsubAbstractionBackend(unittest.TestCase):
         required_methods = ['publish', 'subscribe']
         for method in required_methods:
             assert getattr(self.pubsub, method, None) is not None
+
 
 if __name__ == '__main__':
     unittest.main()

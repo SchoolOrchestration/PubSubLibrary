@@ -1,10 +1,11 @@
-'''
+"""
 Test the PubNub backend
-'''
-import unittest
+"""
 from backends import RedisBackend
+import unittest
 
-class TestPubnubBackend(unittest.TestCase):
+
+class TestPubNubBackend(unittest.TestCase):
     def setUp(self):
 
         self.pb = RedisBackend('test-channel')
@@ -12,7 +13,6 @@ class TestPubnubBackend(unittest.TestCase):
     def test_publish(self):
         example_payload = {"foo": "bar"}
         self.pb.publish('example.test', example_payload)
-
 
     # def test_subscribe(self):
     #     pb.subscribe()
