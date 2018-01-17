@@ -1,2 +1,8 @@
 # Jetbrains Project Files
 .idea/
+
+# ENV
+env/
+venv/
+ENV/
+VENV/
