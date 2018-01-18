@@ -2,6 +2,7 @@ from pubnub.pubnub import PubNub, SubscribeListener
 from pubnub.pnconfiguration import PNConfiguration
 import importlib
 import redis
+import json
 import time
 import os
 
@@ -14,31 +15,33 @@ def get_secret(secret_name, default=None):
         return os.environ.get(secret_name, default)
 
 
-def call_mapped_method(message, function_mapper:dict):
+def call_mapped_method(message, function_mapper: dict):
     """
     fund method description from function_mapper[message.key]
     and execute function_mapper[message.key](message)
 
     Where message is a python dict
     """
-    message = eval(message)
-    data = message.get('payload')
-    event_key = message.get('key')
-    print('key: {}'.format(event_key))
-    task_definition = function_mapper.get(event_key, None)
-
-    if task_definition is not None:
-        mod = importlib.import_module(task_definition.get('module'))
-        method = task_definition.get('method')
-        getattr(mod, method)(data)
+    if type(message) == dict and type(message['data']) != int:
+        data = message['data'].decode("utf-8")
+        event_key = message['channel'].decode("utf-8")
+        task_definition = function_mapper.get(event_key, None)
+        if task_definition is not None:
+            mod = importlib.import_module(task_definition.get('module'))
+            method = task_definition.get('method')
+            getattr(mod, method)(normalize(data)['payload'])
 
 
-def normalize(content, as_json):
+def normalize(content, as_json=True):
     """
     Take a string, bytestring, dict or even a json object and turn it into a
     pydict
     """
-    pass
+    if as_json:
+        content = content.replace("\"", "|")
+        content = content.replace("'", "\"")
+        content = content.replace("|", "'")
+        return json.loads(content)
 
 
 class RedisBackend:

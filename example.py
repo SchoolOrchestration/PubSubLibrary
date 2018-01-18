@@ -8,7 +8,7 @@ import sys
 fake = Faker()
 
 FUNCTION_MAPPER = {
-    'foo': {
+    'my.app': {
         'module': 'example',
         'method': 'foo'
     }
@@ -16,8 +16,7 @@ FUNCTION_MAPPER = {
 
 
 def foo(data):
-    res = json.loads(json.dumps(data.get('data').decode('utf-8')))
-    print("<< Message received: %s " % res)
+    print("<< Message received: %s " % data)
 
 
 # def message_received():
@@ -32,7 +31,7 @@ def publisher():
     """
     backend = get_backend('backends', BACKEND, 'my.app')
     for x in range(0, 100):
-        data = fake.pydict()
+        data = {"foo": "bar"}
 
         print("-----------------------")
         publish(backend, 'foo', data)
