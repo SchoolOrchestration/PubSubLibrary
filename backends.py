@@ -22,7 +22,7 @@ def call_mapped_method(message, function_mapper: dict):
 
     Where message is a python dict
     """
-    if type(message) == dict and type(message['data']) != int:
+    if isinstance(message, dict) and not isinstance(message['data'], int):
         data = message['data'].decode("utf-8")
         event_key = message['channel'].decode("utf-8")
         task_definition = function_mapper.get(event_key, None)
