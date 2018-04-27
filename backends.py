@@ -1,74 +1,119 @@
 from pubnub.pubnub import PubNub, SubscribeListener
 from pubnub.pnconfiguration import PNConfiguration
-import importlib
-import redis
-import json
-import time
-import os
+from uuid import uuid4
+import importlib, redis, json, time, os
+from pubsub import (
+    get_secret,
+    call_mapped_method,
+    normalize
+)
 
-
-def get_secret(secret_name, default=None):
-    """Returns a docker secret"""
-    try:
-        return open('/run/secrets/{}'.format(secret_name)).read().rstrip()
-    except FileNotFoundError:
-        return os.environ.get(secret_name, default)
-
-
-def call_mapped_method(message, function_mapper: dict):
-    """
-    fund method description from function_mapper[message.key]
-    and execute function_mapper[message.key](message)
-
-    Where message is a python dict
-    """
-    if isinstance(message, dict) and not isinstance(message['data'], int):
-        data = message['data'].decode("utf-8")
-        event_key = message['channel'].decode("utf-8")
-        task_definition = function_mapper.get(event_key, None)
-        if task_definition is not None:
-            mod = importlib.import_module(task_definition.get('module'))
-            method = task_definition.get('method')
-            getattr(mod, method)(normalize(data)['payload'])
-
-
-def normalize(content, as_json=True):
-    """
-    Take a string, bytestring, dict or even a json object and turn it into a
-    pydict
-    """
-    if as_json:
-        content = content.replace("\"", "|")
-        content = content.replace("'", "\"")
-        content = content.replace("|", "'")
-        return json.loads(content)
-
+IS_VERBOSE = os.environ.get('VERBOSE', 'True') == 'True'
 
 class RedisBackend:
+    """
+    * list listening apps
+    * show recent events and their subscribers' acknowledgments
+    """
 
-    def __init__(self, channel):
+    def __init__(self, channel, appname):
         self.channel = channel
+        self.appname = appname
         self.redis = redis.StrictRedis(
             host=get_secret('PUBSUB_HOST', 'redis'),
             port=6379,
             db=0
         )
 
+    def __ack(self, event, event_id):
+        '''
+        Inform the puslisher that we've received the message
+        '''
+        key = 'pubsub.events.actions.{}.{}.received'.format(event, event_id)
+        self.redis.sadd(key, self.appname)
+
+        if IS_VERBOSE:
+            print('<< - {} received by {}'.format(event, self.appname))
+
+    def clean(self):
+        '''
+        Clean old subscribers from the registry
+        '''
+        pass
+
+    def register(self, events):
+        '''
+        Register a subscriber: Inform the pubsub appname and what events we're listening to
+        events is a list of events to which this app will listen
+        '''
+        print ('Registering: {}'.format(self.appname))
+        print ('------------------------------------')
+        for event in events:
+            key = 'pubsub.events.{}.subscribers'.format(event)
+            # for event, get subscrived apps
+            self.redis.sadd(key, self.appname)
+
+            # for app, get events
+            key = 'pubsub.applications.{}.events'.format(self.appname)
+            self.redis.sadd(key, event)
+
+            print(" - {}".format(event))
+        print ('------------------------------------')
+
+    def de_register(self, events):
+        '''
+        If a subscriber disappears, it must de-register itself
+        TODO: make sure this is called on ctrl-C
+        '''
+        for event in events:
+            key = 'pubsub.events.{}.subscribers'.format(event)
+            # for event, get subscrived apps
+            self.redis.srem(key, self.appname)
+
+            # for app, get events
+            key = 'pubsub.applications.{}.events'.format(self.appname)
+            self.redis.srem(key, event)
+
+    def checkin(self, events):
+        '''
+        A subscriber must checkin periodically to let the system know that
+        it's still there and listening
+        '''
+        print('Checking in:')
+        self.register(events)
+
     def publish(self, key, payload):
+        event_id = str(uuid4())
         data = {
             "key": key,
+            "id": event_id,
             "payload": payload
         }
-        return self.redis.publish(self.channel, data)
+        result = self.redis.publish(self.channel, data)
+        redis_key = 'pubsub.events.actions.{}.{}.published'.format(key, event_id)
+        self.redis.sadd(redis_key, self.appname)
+
+        if IS_VERBOSE:
+            print('>> {} -> {}.{}'.format(self.appname, self.channel, key))
+        return result
 
     def subscribe(self, function_mapper):
         p = self.redis.pubsub()
         p.subscribe(self.channel)
+        events = [key for key,value in function_mapper.items()]
+        self.register(events)
 
+        count = 0
         while True:
             message = p.get_message()
             if message:
-                call_mapped_method(message, function_mapper)
+                event, event_id = call_mapped_method(message, function_mapper)
+                if event is not None:
+                    self.__ack(event, event_id)
+            count+=1
+            if count > 60000: # every minute:
+                self.checkin(function_mapper)
+                count = 0
             time.sleep(0.001)  # be nice to the system :)
 
 
