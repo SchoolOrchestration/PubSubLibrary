@@ -9,21 +9,29 @@ services:
     volumes:
       - .:/code/
     command: python /code/example.py
+    environment:
+      - VERBOSE=True
 
   subscriber_1:
     build: .
     volumes:
       - .:/code/
     command: python /code/example.py subscribe
+    environment:
+      - VERBOSE=True
 
   subscriber_2:
     build: .
     volumes:
       - .:/code/
     command: python /code/example.py subscribe
+    environment:
+      - VERBOSE=True
 
   subscriber_3:
     build: .
     volumes:
       - .:/code/
     command: python /code/example.py subscribe
+    environment:
+      - VERBOSE=True
