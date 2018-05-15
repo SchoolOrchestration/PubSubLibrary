@@ -6,5 +6,10 @@ env/
 venv/
 ENV/
 VENV/
+*.egg-info
+
+dist/
+
+.cache/
 
 __pycache__/
