@@ -60,7 +60,7 @@ def publisher():
     """
     Publishes a random blob of data after a random number of seconds
     """
-    backend = get_backend('backends', BACKEND, CHANNEL, 'my.app')
+    backend = get_backend('school_backends', BACKEND, CHANNEL, 'my.app')
     for x in range(0, 100):
         data = {"foo": "bar"}
 
@@ -79,7 +79,7 @@ def subscribe():
     time.sleep(RANDOM_TIME)
 
     app_name = 'subscriber-{}'.format(str(uuid.uuid4()))
-    backend = get_backend('backends', BACKEND, CHANNEL, app_name)
+    backend = get_backend('school_backends', BACKEND, CHANNEL, app_name)
     listen(backend, get_function_mapper())
 
 
