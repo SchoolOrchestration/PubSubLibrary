@@ -1,14 +1,17 @@
 from pubnub.pubnub import PubNub, SubscribeListener
 from pubnub.pnconfiguration import PNConfiguration
 from uuid import uuid4
-import importlib, redis, json, time, os
 from pubsub import (
     get_secret,
     call_mapped_method,
-    normalize
 )
+import importlib
+import redis
+import time
+import os
 
 IS_VERBOSE = os.environ.get('VERBOSE', 'True') == 'True'
+
 
 class RedisBackend:
     """
@@ -26,9 +29,9 @@ class RedisBackend:
         )
 
     def __ack(self, event, event_id):
-        '''
+        """
         Inform the puslisher that we've received the message
-        '''
+        """
         key = 'pubsub.events.actions.{}.{}.received'.format(event, event_id)
         self.redis.sadd(key, self.appname)
 
@@ -36,18 +39,19 @@ class RedisBackend:
             print('<< - {} received by {}'.format(event, self.appname))
 
     def clean(self):
-        '''
+        """
         Clean old subscribers from the registry
-        '''
+        """
         pass
 
     def register(self, events):
-        '''
-        Register a subscriber: Inform the pubsub appname and what events we're listening to
-        events is a list of events to which this app will listen
-        '''
-        print ('Registering: {}'.format(self.appname))
-        print ('------------------------------------')
+        """
+        Register a subscriber: Inform the pubsub appname and what events
+        we're listening to events is a list of events to which this app will
+        listen
+        """
+        print('Registering: {}'.format(self.appname))
+        print('------------------------------------')
         for event in events:
             key = 'pubsub.events.{}.subscribers'.format(event)
             # for event, get subscrived apps
@@ -58,13 +62,13 @@ class RedisBackend:
             self.redis.sadd(key, event)
 
             print(" - {}".format(event))
-        print ('------------------------------------')
+        print('------------------------------------')
 
     def de_register(self, events):
-        '''
+        """
         If a subscriber disappears, it must de-register itself
         TODO: make sure this is called on ctrl-C
-        '''
+        """
         for event in events:
             key = 'pubsub.events.{}.subscribers'.format(event)
             # for event, get subscrived apps
@@ -74,11 +78,11 @@ class RedisBackend:
             key = 'pubsub.applications.{}.events'.format(self.appname)
             self.redis.srem(key, event)
 
-    def checkin(self, events):
-        '''
-        A subscriber must checkin periodically to let the system know that
+    def check_in(self, events):
+        """
+        A subscriber must check in periodically to let the system know that
         it's still there and listening
-        '''
+        """
         print('Checking in:')
         self.register(events)
 
@@ -90,7 +94,8 @@ class RedisBackend:
             "payload": payload
         }
         result = self.redis.publish(self.channel, data)
-        redis_key = 'pubsub.events.actions.{}.{}.published'.format(key, event_id)
+        redis_key = 'pubsub.events.actions.{}.{}.published'.format(key,
+                                                                   event_id)
         self.redis.sadd(redis_key, self.appname)
 
         if IS_VERBOSE:
@@ -100,7 +105,7 @@ class RedisBackend:
     def subscribe(self, function_mapper):
         p = self.redis.pubsub()
         p.subscribe(self.channel)
-        events = [key for key,value in function_mapper.items()]
+        events = [key for key, value in function_mapper.items()]
         self.register(events)
 
         count = 0
@@ -110,9 +115,9 @@ class RedisBackend:
                 event, event_id = call_mapped_method(message, function_mapper)
                 if event is not None:
                     self.__ack(event, event_id)
-            count+=1
-            if count > 60000: # every minute:
-                self.checkin(function_mapper)
+            count += 1
+            if count > 60000:  # every minute:
+                self.check_in(function_mapper)
                 count = 0
             time.sleep(0.001)  # be nice to the system :)
 

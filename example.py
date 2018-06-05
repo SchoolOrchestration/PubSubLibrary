@@ -21,10 +21,11 @@ FUNCTION_MAPPER = {
 
 events = ['foo', 'bar', 'baz', 'bus']
 
+
 def get_function_mapper():
-    '''
+    """
     Generate a random function mapping
-    '''
+    """
     num_events_to_subscribe_to = random.randint(0, len(events))
     mapper = {}
     random.shuffle(events)
@@ -37,14 +38,18 @@ def get_function_mapper():
         })
     return mapper
 
+
 def foo(data):
     print("foo!")
+
 
 def bar(data):
     print("bar!")
 
+
 def baz(data):
     print("baz!")
+
 
 def bus(data):
     print("bus!")
@@ -62,13 +67,14 @@ def publisher():
     """
     backend = get_backend('school_backends', BACKEND, CHANNEL, 'my.app')
     for x in range(0, 100):
-        data = {"foo": "bar"}
+        data = {"foo": "bar", "nested": [{"foo": "baz"}]}
 
         print("-----------------------")
         publish(backend, random.choice(events), data)
         sleep_time = random.choice(range(0, 10))
         print("Next publication in {}".format(sleep_time))
         time.sleep(sleep_time)
+
 
 def subscribe():
     """
@@ -81,7 +87,6 @@ def subscribe():
     app_name = 'subscriber-{}'.format(str(uuid.uuid4()))
     backend = get_backend('school_backends', BACKEND, CHANNEL, app_name)
     listen(backend, get_function_mapper())
-
 
 
 if __name__ == "__main__":
