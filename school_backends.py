@@ -19,7 +19,7 @@ class RedisBackend:
     def __init__(self, channel, appname):
         self.channel = channel
         self.appname = appname
-        seredis = redis.StrictRedis(
+        self.redis = redis.StrictRedis(
             host=get_secret('PUBSUB_HOST', 'redis'),
             port=6379,
             db=0
