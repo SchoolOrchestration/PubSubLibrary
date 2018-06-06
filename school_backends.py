@@ -24,6 +24,7 @@ class RedisBackend:
         self.appname = appname
         self.redis = redis.StrictRedis(
             host=get_secret('PUBSUB_HOST', 'redis'),
+            password=get_secret('PUBSUB_PASSWORD', None),
             port=6379,
             db=0
         )
