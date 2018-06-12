@@ -25,8 +25,8 @@ class RedisBackend:
         self.redis = redis.StrictRedis(
             host=get_secret('PUBSUB_HOST', 'redis'),
             password=get_secret('PUBSUB_PASSWORD', None),
-            port=6379,
-            db=0
+            port=int(get_secret('PUBSUB_PORT', '6379')),
+            db=int(get_secret('PUBSUB_INDEX', '0'))
         )
 
     def __ack(self, event, event_id):

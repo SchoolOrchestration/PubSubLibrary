@@ -53,7 +53,6 @@ def call_mapped_method(message, function_mapper: dict):
     """
     if isinstance(message, dict) and not isinstance(message['data'], int):
         data = normalize(message['data'])
-        print(type(data))
         event_key = data.get('key')
         task_definition = function_mapper.get(event_key, None)
         if task_definition is not None:
