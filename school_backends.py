@@ -5,23 +5,24 @@ from pubsub import (
     get_secret,
     call_mapped_method,
 )
-import importlib
-import redis
-import time
-import os
+import importlib, redis, time, os, uuid
 
 IS_VERBOSE = os.environ.get('VERBOSE', 'True') == 'True'
-
-
+CHECKIN_INTERVAL = 60000 # 1 minute:
+KEY_EXPIRY = 70 # seconds
 class RedisBackend:
     """
     * list listening apps
     * show recent events and their subscribers' acknowledgments
     """
 
-    def __init__(self, channel, appname):
+    def __init__(self, channel, appname, instance_id = None):
         self.channel = channel
         self.appname = appname
+        self.instance_id = instance_id
+        if self.instance_id is None:
+            self.instance_id = str(uuid.uuid4())
+
         self.redis = redis.StrictRedis(
             host=get_secret('PUBSUB_HOST', 'redis'),
             password=get_secret('PUBSUB_PASSWORD', None),
@@ -85,6 +86,12 @@ class RedisBackend:
         it's still there and listening
         """
         print('Checking in:')
+        key = 'pubsub.subscribers.alive.{}.{}'.format(
+            self.appname,
+            self.instance_id
+        )
+        self.redis.incrby(key, CHECKIN_INTERVAL)
+        self.redis.expire(key, KEY_EXPIRY)
         self.register(events)
 
     def publish(self, key, payload):
@@ -107,7 +114,7 @@ class RedisBackend:
         p = self.redis.pubsub()
         p.subscribe(self.channel)
         events = [key for key, value in function_mapper.items()]
-        self.register(events)
+        self.check_in(events)
 
         count = 0
         while True:
@@ -117,7 +124,7 @@ class RedisBackend:
                 if event is not None:
                     self.__ack(event, event_id)
             count += 1
-            if count > 60000:  # every minute:
+            if count > CHECKIN_INTERVAL:
                 self.check_in(function_mapper)
                 count = 0
             time.sleep(0.001)  # be nice to the system :)

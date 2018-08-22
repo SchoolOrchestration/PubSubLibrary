@@ -69,6 +69,24 @@ pubsub.subscribe(functionmapper)
 
 ### Reporting / monitoring:
 
+**Connect to redis (in local testmode):**
+
+```
+docker-compose run --rm redis redis -h redis
+```
+
+**Find all active subscribers**
+
+`keys pubsub.subscribers.alive.*`
+
+```
+redis:6379> keys pubsub.subscribers.alive.*
+1) "pubsub.subscribers.alive.subscriber.48cb6944-161d-4765-a81f-bbe148ea7972"
+2) "pubsub.subscribers.alive.subscriber.ab0fd550-0010-402e-92ad-b6ec49e515cb"
+```
+
+(`pubsub.subscribers.alive.{appname}.{{instance_id})
+
 **Find all apps registered against an event:**
 
 `smembers pubsub.events.{event}.subscribers`
