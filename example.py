@@ -84,7 +84,7 @@ def subscribe():
     print("starting in {}".format(RANDOM_TIME))
     time.sleep(RANDOM_TIME)
 
-    app_name = 'subscriber-{}'.format(str(uuid.uuid4()))
+    app_name = 'subscriber'.format(str(uuid.uuid4()))
     backend = get_backend('school_backends', BACKEND, CHANNEL, app_name)
     listen(backend, get_function_mapper())
 
