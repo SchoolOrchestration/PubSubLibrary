@@ -13,6 +13,14 @@ The following environment variables will be used:
 | `PUBSUB_PORT`       | no | `6379` |
 | `PUBSUB_INDEX`      | no | `0` |
 
+for checking the health of the subscriber (this needs to be run in the same directory as the subscriber is running)
+```python
+from pubsub import subscriber_health
+
+backend = get_backend('school_backends', 'RedisBackend', 'some-channel', 'app-name')
+subscriber_health(backend)
+```
+
 **Settings**
 
 ## PubNub

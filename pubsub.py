@@ -61,3 +61,7 @@ def call_mapped_method(message, function_mapper: dict):
             getattr(mod, method)(data['payload'])
             return data.get('key'), data.get('id')
     return None, None
+
+
+def subscriber_health(backend):
+    backend.health_check()

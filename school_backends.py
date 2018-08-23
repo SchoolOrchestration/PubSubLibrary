@@ -32,13 +32,28 @@ class RedisBackend:
 
     def __ack(self, event, event_id):
         """
-        Inform the puslisher that we've received the message
+        Inform the publisher that we've received the message
         """
         key = 'pubsub.events.actions.{}.{}.received'.format(event, event_id)
         self.redis.sadd(key, self.appname)
 
         if IS_VERBOSE:
             print('<< - {} received by {}'.format(event, self.appname))
+
+
+    def health_check(self):
+        """
+        Checks that the subscriber has checked in recently
+        """
+        key = 'pubsub.subscribers.alive.{}.{}'.format(
+            self.appname,
+            self.get_subscriber_id()
+        )
+        alive = self.redis.get(key)
+        if not alive:
+            raise ConnectionError('Subscriber has failed to connect to pubsub')
+
+
 
     def clean(self):
         """
@@ -85,7 +100,7 @@ class RedisBackend:
         A subscriber must check in periodically to let the system know that
         it's still there and listening
         """
-        print('Checking in:')
+        print('Checking in: ')
         key = 'pubsub.subscribers.alive.{}.{}'.format(
             self.appname,
             self.instance_id
@@ -110,12 +125,23 @@ class RedisBackend:
             print('>> {} -> {}.{}'.format(self.appname, self.channel, key))
         return result
 
+    @staticmethod
+    def set_subscriber_id(subscriber_id):
+        f = open("subscriber", "a+")
+        f.write('{}'.format(subscriber_id))
+
+    @staticmethod
+    def get_subscriber_id():
+        f = open("subscriber", "r")
+        subscriber_id = f.read()
+        return subscriber_id
+
     def subscribe(self, function_mapper):
         p = self.redis.pubsub()
         p.subscribe(self.channel)
         events = [key for key, value in function_mapper.items()]
         self.check_in(events)
-
+        self.set_subscriber_id(self.instance_id)
         count = 0
         while True:
             message = p.get_message()
