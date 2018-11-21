@@ -2,3 +2,5 @@ pubnub
 requests
 redis
 fakeredis
+paho-mqtt==1.4.0
+faker

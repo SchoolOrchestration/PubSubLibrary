@@ -6,10 +6,73 @@ from pubsub import (
     call_mapped_method,
 )
 import importlib, redis, time, os, uuid
+import paho.mqtt.client as mqtt
+from pubsub import normalize
+from paho.mqtt.publish import single
+import importlib
 
 IS_VERBOSE = os.environ.get('VERBOSE', 'True') == 'True'
 CHECKIN_INTERVAL = 60000 # 1 minute:
 KEY_EXPIRY = 70 # seconds
+
+
+class MQTTBackend:
+    """
+    * list listening apps
+    * show recent events and their subscribers' acknowledgments
+    """
+
+    def __init__(self, channel, appname, instance_id=None):
+        self.channel = channel
+        self.appname = appname
+        self.instance_id = instance_id
+        if self.instance_id is None:
+            self.instance_id = str(uuid.uuid4())
+
+    def publish(self, key, payload):
+        single(
+            "{}/{}".format(self.channel, key),
+            payload=str(payload),
+            qos=0,
+            hostname=os.environ.get('MQTT_HOST', 'mqtt'),
+            port=1883
+        )
+
+    def subscribe(self, function_mapper):
+        channel = self.channel
+        client = mqtt.Client(self.appname)
+
+        def on_message(client, userdata, msg):
+            task_definition = function_mapper.get(msg.topic.split('/')[1])
+            if task_definition:
+                mod = importlib.import_module(task_definition.get('module'))
+                method = task_definition.get('method')
+                getattr(mod, method)(normalize(msg.payload))
+
+        def on_connect(client, userdata, flags, rc):
+            print("Connected with result code " + str(rc))
+
+            # Subscribing in on_connect() means that if we lose the connection
+            # and reconnect then subscriptions will be renewed.
+            subscribe_list = [
+                    ('{}/foo'.format(channel), 0),
+                    ('{}/bar'.format(channel), 0),
+                    ('{}baz'.format(channel), 0),
+                    ('{}/bus'.format(channel), 0)
+                ]
+            client.subscribe(subscribe_list)
+        client.on_connect = on_connect
+        client.on_message = on_message
+
+        client.connect(os.environ.get('MQTT_HOST', 'mqtt'), 1883, 60)
+
+        # Blocking call that processes network traffic, dispatches callbacks and
+        # handles reconnecting.
+        # Other loop*() functions are available that give a threaded interface
+        # and a manual interface.
+        client.loop_forever()
+
+
 class RedisBackend:
     """
     * list listening apps
