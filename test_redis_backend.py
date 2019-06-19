@@ -1,22 +1,18 @@
 """
 Test the PubNub backend
 """
-from backends import RedisBackend
+from school_backends import RedisBackend
 import unittest
 
 
 class TestPubNubBackend(unittest.TestCase):
     def setUp(self):
-
-        self.pb = RedisBackend('test-channel')
+        self.pb = RedisBackend(channel="test-channel", appname="test", instance_id=1)
 
     def test_publish(self):
         example_payload = {"foo": "bar"}
-        self.pb.publish('example.test', example_payload)
-
-    # def test_subscribe(self):
-    #     pb.subscribe()
+        self.pb.publish("example.test", example_payload)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

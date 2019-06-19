@@ -1,22 +1,29 @@
 from pubnub.pubnub import PubNub, SubscribeListener
 from pubnub.pnconfiguration import PNConfiguration
+from school_encoders import JSONEncoder
 from uuid import uuid4
-from pubsub import (
-    get_secret,
-    call_mapped_method,
-)
-import importlib, redis, time, os, uuid
+from pubsub import get_secret, call_mapped_method
 
-IS_VERBOSE = os.environ.get('VERBOSE', 'True') == 'True'
-CHECKIN_INTERVAL = 60000 # 1 minute:
-KEY_EXPIRY = 70 # seconds
+import importlib
+import json
+import redis
+import time
+import os
+import uuid
+
+
+IS_VERBOSE = os.environ.get("VERBOSE", "True") == "True"
+CHECKIN_INTERVAL = 60000  # 1 minute:
+KEY_EXPIRY = 70  # seconds
+
+
 class RedisBackend:
     """
     * list listening apps
     * show recent events and their subscribers' acknowledgments
     """
 
-    def __init__(self, channel, appname, instance_id = None):
+    def __init__(self, channel, appname, instance_id=None):
         self.channel = channel
         self.appname = appname
         self.instance_id = instance_id
@@ -24,21 +31,21 @@ class RedisBackend:
             self.instance_id = str(uuid.uuid4())
 
         self.redis = redis.StrictRedis(
-            host=get_secret('PUBSUB_HOST', 'redis'),
-            password=get_secret('PUBSUB_PASSWORD', None),
-            port=int(get_secret('PUBSUB_PORT', '6379')),
-            db=int(get_secret('PUBSUB_INDEX', '0'))
+            host=get_secret("PUBSUB_HOST", "redis"),
+            password=get_secret("PUBSUB_PASSWORD", None),
+            port=int(get_secret("PUBSUB_PORT", "6379")),
+            db=int(get_secret("PUBSUB_INDEX", "0")),
         )
 
     def __ack(self, event, event_id):
         """
         Inform the puslisher that we've received the message
         """
-        key = 'pubsub.events.actions.{}.{}.received'.format(event, event_id)
+        key = "pubsub.events.actions.{}.{}.received".format(event, event_id)
         self.redis.sadd(key, self.appname)
 
         if IS_VERBOSE:
-            print('<< - {} received by {}'.format(event, self.appname))
+            print("<< - {} received by {}".format(event, self.appname))
 
     def clean(self):
         """
@@ -52,19 +59,19 @@ class RedisBackend:
         we're listening to events is a list of events to which this app will
         listen
         """
-        print('Registering: {}'.format(self.appname))
-        print('------------------------------------')
+        print("Registering: {}".format(self.appname))
+        print("------------------------------------")
         for event in events:
-            key = 'pubsub.events.{}.subscribers'.format(event)
+            key = "pubsub.events.{}.subscribers".format(event)
             # for event, get subscrived apps
             self.redis.sadd(key, self.appname)
 
             # for app, get events
-            key = 'pubsub.applications.{}.events'.format(self.appname)
+            key = "pubsub.applications.{}.events".format(self.appname)
             self.redis.sadd(key, event)
 
             print(" - {}".format(event))
-        print('------------------------------------')
+        print("------------------------------------")
 
     def de_register(self, events):
         """
@@ -72,12 +79,12 @@ class RedisBackend:
         TODO: make sure this is called on ctrl-C
         """
         for event in events:
-            key = 'pubsub.events.{}.subscribers'.format(event)
+            key = "pubsub.events.{}.subscribers".format(event)
             # for event, get subscrived apps
             self.redis.srem(key, self.appname)
 
             # for app, get events
-            key = 'pubsub.applications.{}.events'.format(self.appname)
+            key = "pubsub.applications.{}.events".format(self.appname)
             self.redis.srem(key, event)
 
     def check_in(self, events):
@@ -85,29 +92,21 @@ class RedisBackend:
         A subscriber must check in periodically to let the system know that
         it's still there and listening
         """
-        print('Checking in:')
-        key = 'pubsub.subscribers.alive.{}.{}'.format(
-            self.appname,
-            self.instance_id
-        )
+        print("Checking in:")
+        key = "pubsub.subscribers.alive.{}.{}".format(self.appname, self.instance_id)
         self.redis.incrby(key, CHECKIN_INTERVAL)
         self.redis.expire(key, KEY_EXPIRY)
         self.register(events)
 
     def publish(self, key, payload):
         event_id = str(uuid4())
-        data = {
-            "key": key,
-            "id": event_id,
-            "payload": payload
-        }
-        result = self.redis.publish(self.channel, data)
-        redis_key = 'pubsub.events.actions.{}.{}.published'.format(key,
-                                                                   event_id)
+        data = {"key": key, "id": event_id, "payload": payload}
+        result = self.redis.publish(self.channel, json.dumps(data, cls=JSONEncoder))
+        redis_key = "pubsub.events.actions.{}.{}.published".format(key, event_id)
         self.redis.sadd(redis_key, self.appname)
 
         if IS_VERBOSE:
-            print('>> {} -> {}.{}'.format(self.appname, self.channel, key))
+            print(">> {} -> {}.{}".format(self.appname, self.channel, key))
         return result
 
     def subscribe(self, function_mapper):
@@ -147,12 +146,14 @@ class PubNubBackend:
     """
 
     def __init__(self, channel):
-        publish_key = get_secret('PUBNUB_PUBLISH_KEY', None)
-        subscribe_key = get_secret('PUBNUB_SUBSCRIBE_KEY', None)
+        publish_key = get_secret("PUBNUB_PUBLISH_KEY", None)
+        subscribe_key = get_secret("PUBNUB_SUBSCRIBE_KEY", None)
 
         if None in [subscribe_key, publish_key]:
-            msg = ('Please make sure you\'ve set environment varialbes: '
-                   'PUBNUB_PUBLISH_KEY and PUBNUB_SUBSCRIBE_KEY')
+            msg = (
+                "Please make sure you've set environment varialbes: "
+                "PUBNUB_PUBLISH_KEY and PUBNUB_SUBSCRIBE_KEY"
+            )
             raise Exception(msg)
         pnconfig = PNConfiguration()
         pnconfig.subscribe_key = subscribe_key
@@ -167,16 +168,12 @@ class PubNubBackend:
             if result:
                 print(result)
             if status.error is not None:
-                raise Exception('PubSub publish error: %s: %s' %
-                                (status.error, status.error_data))
-        data = {
-            "key": key,
-            "payload": payload
-        }
-        self.pubnub.publish() \
-            .channel(self.channel) \
-            .message(data) \
-            .async(publish_callback)
+                raise Exception(
+                    "PubSub publish error: %s: %s" % (status.error, status.error_data)
+                )
+
+        data = {"key": key, "payload": payload}
+        self.pubnub.publish().channel(self.channel).message(data).async(publish_callback)
 
     def listen(self, function_mapper):
         """
@@ -207,17 +204,17 @@ class PubNubBackend:
         #     .sync()
 
         my_listener.wait_for_connect()
-        print('connected')
+        print("connected")
 
         while True:
             result = my_listener.wait_for_message_on(self.channel)
             print(result.message)
-            event_key = result.message.get('key')
+            event_key = result.message.get("key")
             task_definition = function_mapper.get(event_key, None)
-            print('key: %s' % event_key)
-            print('task definition: %s' % task_definition)
+            print("key: %s" % event_key)
+            print("task definition: %s" % task_definition)
 
             if task_definition is not None:
-                mod = importlib.import_module(task_definition.get('module'))
-                method = task_definition.get('method')
+                mod = importlib.import_module(task_definition.get("module"))
+                method = task_definition.get("method")
                 getattr(mod, method)(result.message)

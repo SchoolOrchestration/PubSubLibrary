@@ -31,7 +31,7 @@ def listen(backend, function_mapper):
 def get_secret(secret_name, default=None):
     """Returns a docker secret"""
     try:
-        return open('/run/secrets/{}'.format(secret_name)).read().rstrip()
+        return open("/run/secrets/{}".format(secret_name)).read().rstrip()
     except FileNotFoundError:
         return os.environ.get(secret_name, default)
 
@@ -51,13 +51,13 @@ def call_mapped_method(message, function_mapper: dict):
 
     Where message is a python dict
     """
-    if isinstance(message, dict) and not isinstance(message['data'], int):
-        data = normalize(message['data'])
-        event_key = data.get('key')
+    if isinstance(message, dict) and not isinstance(message["data"], int):
+        data = normalize(message["data"])
+        event_key = data.get("key")
         task_definition = function_mapper.get(event_key, None)
         if task_definition is not None:
-            mod = importlib.import_module(task_definition.get('module'))
-            method = task_definition.get('method')
-            getattr(mod, method)(data['payload'])
-            return data.get('key'), data.get('id')
+            mod = importlib.import_module(task_definition.get("module"))
+            method = task_definition.get("method")
+            getattr(mod, method)(data["payload"])
+            return data.get("key"), data.get("id")
     return None, None
