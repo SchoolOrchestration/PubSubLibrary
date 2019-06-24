@@ -9,17 +9,12 @@ import uuid
 
 fake = Faker()
 
-CHANNEL = 'my.project.channel'
+CHANNEL = "my.project.channel"
 
 # this is an example of what a function_mapper might look like
-FUNCTION_MAPPER = {
-    CHANNEL: {
-        'module': 'example',
-        'method': 'foo'
-    }
-}
+FUNCTION_MAPPER = {CHANNEL: {"module": "example", "method": "foo"}}
 
-events = ['foo', 'bar', 'baz', 'bus']
+events = ["foo", "bar", "baz", "bus"]
 
 
 def get_function_mapper():
@@ -30,12 +25,7 @@ def get_function_mapper():
     mapper = {}
     random.shuffle(events)
     for x in range(0, num_events_to_subscribe_to):
-        mapper.update({
-            events[x]: {
-                'module': 'example',
-                'method': events[x]
-            }
-        })
+        mapper.update({events[x]: {"module": "example", "method": events[x]}})
     return mapper
 
 
@@ -58,14 +48,14 @@ def bus(data):
 # def message_received():
 #     print "<< message received: "
 
-BACKEND = 'RedisBackend'  # options: RedisBackend, PubNubBackend, ..
+BACKEND = "RedisBackend"  # options: RedisBackend, PubNubBackend, ..
 
 
 def publisher():
     """
     Publishes a random blob of data after a random number of seconds
     """
-    backend = get_backend('school_backends', BACKEND, CHANNEL, 'my.app')
+    backend = get_backend("school_backends", BACKEND, CHANNEL, "my.app")
     for x in range(0, 100):
         data = {"foo": "bar", "nested": [{"foo": "baz"}]}
 
@@ -80,12 +70,12 @@ def subscribe():
     """
     listen for things getting published
     """
-    RANDOM_TIME = random.randint(0,10)
+    RANDOM_TIME = random.randint(0, 10)
     print("starting in {}".format(RANDOM_TIME))
     time.sleep(RANDOM_TIME)
 
-    app_name = 'subscriber'.format(str(uuid.uuid4()))
-    backend = get_backend('school_backends', BACKEND, CHANNEL, app_name)
+    app_name = "subscriber".format(str(uuid.uuid4()))
+    backend = get_backend("school_backends", BACKEND, CHANNEL, app_name)
     listen(backend, get_function_mapper())
 
 
